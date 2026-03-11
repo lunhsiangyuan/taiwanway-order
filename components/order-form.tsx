@@ -1,22 +1,49 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
+import { AlertTriangle } from 'lucide-react'
 import { useCart } from '@/lib/cart-context'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { PaymentInfo } from './payment-info'
 
+function getMinPickupTime(totalItems: number): { minTime: string; prepMinutes: number } {
+  const prepMinutes = totalItems > 5 ? 60 : 30
+  const now = new Date()
+  now.setMinutes(now.getMinutes() + prepMinutes)
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  return { minTime: `${hh}:${mm}`, prepMinutes }
+}
+
 export function OrderForm() {
-  const { items, subtotal, taxAmount, totalAmount, clearCart } = useCart()
+  const { items, totalItems, subtotal, taxAmount, totalAmount, clearCart } = useCart()
   const { language, t } = useLanguage()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [timeError, setTimeError] = useState('')
+
+  const { minTime, prepMinutes } = useMemo(() => getMinPickupTime(totalItems), [totalItems])
+
+  const validatePickupTime = (time: string): boolean => {
+    const { minTime: currentMin, prepMinutes: currentPrep } = getMinPickupTime(totalItems)
+    if (time < currentMin) {
+      setTimeError(
+        t('order.pickupTimeTooEarly')
+          .replace('{time}', currentMin)
+          .replace('{minutes}', String(currentPrep))
+      )
+      return false
+    }
+    setTimeError('')
+    return true
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -24,10 +51,17 @@ export function OrderForm() {
     setError('')
 
     const form = new FormData(e.currentTarget)
+    const pickupTime = form.get('pickup_time') as string
+
+    if (!validatePickupTime(pickupTime)) {
+      setLoading(false)
+      return
+    }
+
     const payload = {
       customer_name: form.get('name') as string,
       customer_phone: form.get('phone') as string,
-      pickup_time: form.get('pickup_time') as string,
+      pickup_time: pickupTime,
       note: form.get('note') as string || undefined,
       items: items.map(i => ({
         product_id: i.product.id,
@@ -102,7 +136,19 @@ export function OrderForm() {
         </div>
         <div>
           <Label htmlFor="pickup_time">{t('order.pickupTime')} *</Label>
-          <Input id="pickup_time" name="pickup_time" type="time" required min="11:00" max="20:00" />
+          <Input
+            id="pickup_time"
+            name="pickup_time"
+            type="time"
+            required
+            min={minTime > '11:00' ? minTime : '11:00'}
+            max="19:00"
+            onChange={(e) => validatePickupTime(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('order.pickupTimeHint')}: {minTime} ({prepMinutes} min)
+          </p>
+          {timeError && <p className="mt-1 text-xs text-destructive">{timeError}</p>}
         </div>
         <div>
           <Label htmlFor="note">{t('order.note')}</Label>
@@ -111,6 +157,12 @@ export function OrderForm() {
       </div>
 
       <PaymentInfo />
+
+      {/* 訂單確認警語 */}
+      <div className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>{t('order.confirmWarning')}</p>
+      </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

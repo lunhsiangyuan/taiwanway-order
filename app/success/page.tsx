@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { Suspense } from 'react'
@@ -22,7 +22,13 @@ function SuccessContent() {
           {t('success.orderNumber')}: <span className="font-mono font-bold">{id.slice(0, 8).toUpperCase()}</span>
         </p>
       )}
-      <p className="mb-6 text-muted-foreground">{t('success.message')}</p>
+      <p className="mb-4 text-muted-foreground">{t('success.message')}</p>
+
+      {/* 電話確認提醒 */}
+      <div className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-left text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200 mb-6">
+        <Phone className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>{t('success.confirmReminder')}</p>
+      </div>
 
       <div className="rounded-lg border bg-muted/50 p-4 text-left text-sm mb-8">
         <h3 className="font-semibold mb-2">{t('success.pickupInfo')}</h3>
