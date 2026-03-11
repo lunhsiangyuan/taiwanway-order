@@ -12,7 +12,7 @@ import { useLanguage } from '@/lib/i18n/language-context'
 import { PaymentInfo } from './payment-info'
 
 export function OrderForm() {
-  const { items, totalAmount, clearCart } = useCart()
+  const { items, subtotal, taxAmount, totalAmount, clearCart } = useCart()
   const { language, t } = useLanguage()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -74,6 +74,14 @@ export function OrderForm() {
           </div>
         ))}
         <Separator />
+        <div className="flex justify-between text-sm">
+          <span>{t('cart.subtotal')}</span>
+          <span>${subtotal.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-sm text-muted-foreground">
+          <span>{t('cart.tax')}</span>
+          <span>${taxAmount.toFixed(2)}</span>
+        </div>
         <div className="flex justify-between font-bold">
           <span>{t('cart.total')}</span>
           <span>${totalAmount.toFixed(2)}</span>

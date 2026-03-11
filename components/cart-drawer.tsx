@@ -9,7 +9,7 @@ import { useLanguage } from '@/lib/i18n/language-context'
 import { useRouter } from 'next/navigation'
 
 export function CartDrawer({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { items, removeItem, updateQuantity, clearCart, totalAmount } = useCart()
+  const { items, removeItem, updateQuantity, clearCart, subtotal, taxAmount, totalAmount } = useCart()
   const { language, t } = useLanguage()
   const router = useRouter()
 
@@ -64,6 +64,14 @@ export function CartDrawer({ open, onOpenChange }: { open: boolean; onOpenChange
             </div>
             <div className="space-y-3 pt-3">
               <Separator />
+              <div className="flex justify-between text-sm">
+                <span>{t('cart.subtotal')}</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>{t('cart.tax')}</span>
+                <span>${taxAmount.toFixed(2)}</span>
+              </div>
               <div className="flex justify-between font-semibold">
                 <span>{t('cart.total')}</span>
                 <span>${totalAmount.toFixed(2)}</span>

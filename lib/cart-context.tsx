@@ -10,6 +10,9 @@ type CartAction =
   | { type: 'CLEAR' }
   | { type: 'LOAD'; items: CartItem[] }
 
+// Middletown, NY (Orange County) sales tax: 8.125%
+const TAX_RATE = 0.08125
+
 interface CartContextType {
   items: CartItem[]
   addItem: (product: OrderableProduct) => void
@@ -17,6 +20,8 @@ interface CartContextType {
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
   totalItems: number
+  subtotal: number
+  taxAmount: number
   totalAmount: number
 }
 
@@ -77,7 +82,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, mounted])
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0)
-  const totalAmount = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+  const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+  const taxAmount = Math.round(subtotal * TAX_RATE * 100) / 100
+  const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100
 
   return (
     <CartContext.Provider
@@ -88,6 +95,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         updateQuantity: (productId, quantity) => dispatch({ type: 'UPDATE_QTY', productId, quantity }),
         clearCart: () => dispatch({ type: 'CLEAR' }),
         totalItems,
+        subtotal,
+        taxAmount,
         totalAmount,
       }}
     >

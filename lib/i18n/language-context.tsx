@@ -67,6 +67,8 @@ const translations: Record<Language, Record<string, unknown>> = {
     cart: {
       title: '購物車',
       empty: '購物車是空的',
+      subtotal: '小計',
+      tax: '稅金 (8.125%)',
       total: '合計',
       checkout: '送出訂單',
       remove: '移除',
@@ -182,6 +184,8 @@ const translations: Record<Language, Record<string, unknown>> = {
     cart: {
       title: 'Cart',
       empty: 'Your cart is empty',
+      subtotal: 'Subtotal',
+      tax: 'Tax (8.125%)',
       total: 'Total',
       checkout: 'Place Order',
       remove: 'Remove',
