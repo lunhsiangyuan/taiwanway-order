@@ -50,11 +50,11 @@ test.describe('現點現拿完整流程', () => {
     const allCards = page.getByRole('heading', { level: 3 })
     const allCount = await allCards.count()
 
-    // 點擊「飯類」分類
-    await page.getByRole('button', { name: /飯類|Rice Dishes/ }).click()
+    // 點擊「主食」分類
+    await page.getByRole('button', { name: /主食|Main Dishes/ }).click()
     const filteredCount = await allCards.count()
     expect(filteredCount).toBeLessThan(allCount)
-    expect(filteredCount).toBe(2) // 滷肉飯 + 雞肉飯
+    expect(filteredCount).toBe(4) // 滷肉飯 + 嘉義雞肉飯 + 牛肉麵 + 櫻花蝦油飯
 
     // 點擊「全部」恢復
     await page.getByRole('button', { name: /全部|All/ }).click()

@@ -22,12 +22,12 @@ test.describe('多語言切換', () => {
     await page.goto('/order')
 
     // 中文分類
-    await expect(page.getByRole('button', { name: '飯類' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '主食' })).toBeVisible()
     await expect(page.getByRole('button', { name: '台灣紅茶' })).toBeVisible()
 
     // 切換英文
     await page.getByRole('button', { name: 'EN', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Rice Dishes' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Main Dishes' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Taiwanese Black Tea' })).toBeVisible()
   })
 
