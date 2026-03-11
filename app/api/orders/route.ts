@@ -17,6 +17,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid phone number (at least 10 digits required)' }, { status: 400 })
     }
 
+    // 驗證取餐時間格式與營業時間
+    if (!/^\d{2}:\d{2}$/.test(pickup_time) || pickup_time < '11:00' || pickup_time > '19:00') {
+      return NextResponse.json({ error: 'Pickup time must be between 11:00 and 19:00' }, { status: 400 })
+    }
+
     const supabase = createServerClient()
 
     const { data, error } = await supabase

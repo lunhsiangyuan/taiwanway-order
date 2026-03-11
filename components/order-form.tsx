@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,10 +28,18 @@ export function OrderForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [timeError, setTimeError] = useState('')
+  const [pickupLimits, setPickupLimits] = useState(() => getMinPickupTime(totalItems))
 
-  const { minTime, prepMinutes } = useMemo(() => getMinPickupTime(totalItems), [totalItems])
+  // 每 60 秒更新最早取餐時間，避免頁面停留過久後 hint 過期
+  useEffect(() => {
+    setPickupLimits(getMinPickupTime(totalItems))
+    const timer = setInterval(() => setPickupLimits(getMinPickupTime(totalItems)), 60_000)
+    return () => clearInterval(timer)
+  }, [totalItems])
 
-  const validatePickupTime = (time: string): boolean => {
+  const { minTime, prepMinutes } = pickupLimits
+
+  const validatePickupTime = useCallback((time: string): boolean => {
     const { minTime: currentMin, prepMinutes: currentPrep } = getMinPickupTime(totalItems)
     if (time < currentMin) {
       setTimeError(
@@ -43,7 +51,7 @@ export function OrderForm() {
     }
     setTimeError('')
     return true
-  }
+  }, [totalItems, t])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -80,8 +88,9 @@ export function OrderForm() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')
-      clearCart()
       router.push(`/success?type=order&id=${data.id}`)
+      // 導航啟動後才清空購物車，避免跳轉失敗時購物車已空
+      setTimeout(() => clearCart(), 100)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
@@ -137,26 +146,36 @@ export function OrderForm() {
             name="phone"
             type="tel"
             required
-            pattern="[\d\s\-\(\)\+]{10,}"
+            pattern=".*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*"
             title={language === 'zh' ? '請輸入有效的電話號碼（至少10碼）' : 'Please enter a valid phone number (at least 10 digits)'}
             placeholder={t('order.phonePlaceholder')}
           />
         </div>
         <div>
           <Label htmlFor="pickup_time">{t('order.pickupTime')} *</Label>
-          <Input
-            id="pickup_time"
-            name="pickup_time"
-            type="time"
-            required
-            min={minTime > '11:00' ? minTime : '11:00'}
-            max="19:00"
-            onChange={(e) => validatePickupTime(e.target.value)}
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('order.pickupTimeHint')}: {minTime} ({prepMinutes} min)
-          </p>
-          {timeError && <p className="mt-1 text-xs text-destructive">{timeError}</p>}
+          {minTime > '19:00' ? (
+            <p className="mt-1 text-sm text-destructive font-medium">
+              {language === 'zh'
+                ? `準備時間需 ${prepMinutes} 分鐘，已超過今日營業時間（7PM），請明日再訂`
+                : `${prepMinutes} min prep needed, past today's closing (7PM). Please order tomorrow.`}
+            </p>
+          ) : (
+            <>
+              <Input
+                id="pickup_time"
+                name="pickup_time"
+                type="time"
+                required
+                min={minTime > '11:00' ? minTime : '11:00'}
+                max="19:00"
+                onChange={(e) => validatePickupTime(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('order.pickupTimeHint')}: {minTime} ({prepMinutes} {language === 'zh' ? '分鐘' : 'min'})
+              </p>
+              {timeError && <p className="mt-1 text-xs text-destructive">{timeError}</p>}
+            </>
+          )}
         </div>
         <div>
           <Label htmlFor="note">{t('order.note')}</Label>
@@ -174,7 +193,7 @@ export function OrderForm() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" className="w-full" size="lg" disabled={loading}>
+      <Button type="submit" className="w-full" size="lg" disabled={loading || minTime > '19:00'}>
         {loading ? t('common.loading') : t('order.submit')}
       </Button>
     </form>
