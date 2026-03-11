@@ -11,6 +11,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // 驗證電話號碼（至少 10 碼數字）
+    const digitsOnly = customer_phone.replace(/\D/g, '')
+    if (digitsOnly.length < 10) {
+      return NextResponse.json({ error: 'Invalid phone number (at least 10 digits required)' }, { status: 400 })
+    }
+
     const supabase = createServerClient()
 
     const { data, error } = await supabase

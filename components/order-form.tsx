@@ -132,7 +132,15 @@ export function OrderForm() {
         </div>
         <div>
           <Label htmlFor="phone">{t('order.phone')} *</Label>
-          <Input id="phone" name="phone" type="tel" required placeholder={t('order.phonePlaceholder')} />
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            required
+            pattern="[\d\s\-\(\)\+]{10,}"
+            title={language === 'zh' ? '請輸入有效的電話號碼（至少10碼）' : 'Please enter a valid phone number (at least 10 digits)'}
+            placeholder={t('order.phonePlaceholder')}
+          />
         </div>
         <div>
           <Label htmlFor="pickup_time">{t('order.pickupTime')} *</Label>
