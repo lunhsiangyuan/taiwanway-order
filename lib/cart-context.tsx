@@ -84,7 +84,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0)
   const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
   const taxAmount = Math.round(subtotal * TAX_RATE * 100) / 100
-  const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100
+  const totalAmount = subtotal + taxAmount
 
   return (
     <CartContext.Provider

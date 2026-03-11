@@ -56,7 +56,7 @@ export function CartDrawer({ open, onOpenChange }: { open: boolean; onOpenChange
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(item.product.id)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(item.product.id)} aria-label={t('cart.remove')}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(
   _request: Request,
@@ -34,14 +35,27 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
     const body = await request.json()
-    const supabase = createServerClient()
 
+    // 只允許更新指定欄位
+    const allowed = ['status', 'title', 'description', 'deadline', 'min_quantity', 'max_quantity', 'unit_price', 'image']
+    const updates: Record<string, unknown> = {}
+    for (const key of allowed) {
+      if (key in body) updates[key] = body[key]
+    }
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    const supabase = createServerClient()
     const { error } = await supabase
       .from('campaigns')
-      .update(body)
+      .update(updates)
       .eq('id', id)
 
     if (error) throw error

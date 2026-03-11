@@ -18,7 +18,7 @@ export function Header({ onCartOpen }: { onCartOpen?: () => void }) {
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="font-heading text-xl font-bold text-primary">
-          台灣味
+          {t('site.title').split(' ')[0]}
         </Link>
 
         {/* Desktop nav */}

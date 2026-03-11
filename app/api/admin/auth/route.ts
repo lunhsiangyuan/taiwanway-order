@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { signToken, verifyToken } from '@/lib/admin-auth'
 
 const ADMIN_COOKIE = 'tw-admin-token'
 const TOKEN_MAX_AGE = 60 * 60 * 24 // 24 小時
@@ -11,8 +12,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
   }
 
-  // 使用簡單的 token（密碼的 hash）
-  const token = Buffer.from(`admin:${Date.now()}`).toString('base64')
+  const token = signToken()
 
   const cookieStore = await cookies()
   cookieStore.set(ADMIN_COOKIE, token, {
@@ -32,12 +32,11 @@ export async function DELETE() {
   return NextResponse.json({ success: true })
 }
 
-// 驗證 admin 是否已登入（供其他 API 或 middleware 使用）
 export async function GET() {
   const cookieStore = await cookies()
-  const token = cookieStore.get(ADMIN_COOKIE)
+  const token = cookieStore.get(ADMIN_COOKIE)?.value
 
-  if (!token?.value) {
+  if (!token || !verifyToken(token)) {
     return NextResponse.json({ authenticated: false }, { status: 401 })
   }
 

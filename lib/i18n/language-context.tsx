@@ -89,6 +89,9 @@ const translations: Record<Language, Record<string, unknown>> = {
       phonePlaceholder: '請輸入電話號碼',
       notePlaceholder: '如有特殊需求請備註',
       confirmWarning: '訂單送出後，需經店家致電確認方可成立。未接到確認電話前，訂單尚未生效。',
+      paymentCash: '現金',
+      closedToday: '今日公休，請於營業日（週一、二、五、六）再訂購',
+      phoneValidation: '請輸入有效的電話號碼（至少10碼）',
     },
     success: {
       title: '訂單已送出！',
@@ -210,6 +213,9 @@ const translations: Record<Language, Record<string, unknown>> = {
       phonePlaceholder: 'Enter phone number',
       notePlaceholder: 'Special requests',
       confirmWarning: 'Your order must be confirmed by the store via phone call. It is not valid until you receive a confirmation call.',
+      paymentCash: 'Cash',
+      closedToday: 'Closed today. Please order on business days (Mon, Tue, Fri, Sat).',
+      phoneValidation: 'Please enter a valid phone number (at least 10 digits)',
     },
     success: {
       title: 'Order Submitted!',

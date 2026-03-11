@@ -21,7 +21,7 @@ export function PaymentInfo() {
         </div>
         <div className="flex items-center gap-1.5">
           <Banknote className="h-4 w-4 text-primary" />
-          <span>Cash</span>
+          <span>{t('order.paymentCash')}</span>
         </div>
       </div>
     </div>

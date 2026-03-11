@@ -21,6 +21,12 @@ function getMinPickupTime(totalItems: number): { minTime: string; prepMinutes: n
   return { minTime: `${hh}:${mm}`, prepMinutes }
 }
 
+// 營業日：週一(1)、週二(2)、週五(5)、週六(6)
+const OPEN_DAYS = new Set([1, 2, 5, 6])
+function isStoreOpen(): boolean {
+  return OPEN_DAYS.has(new Date().getDay())
+}
+
 export function OrderForm() {
   const { items, totalItems, subtotal, taxAmount, totalAmount, clearCart } = useCart()
   const { language, t } = useLanguage()
@@ -29,11 +35,16 @@ export function OrderForm() {
   const [error, setError] = useState('')
   const [timeError, setTimeError] = useState('')
   const [pickupLimits, setPickupLimits] = useState(() => getMinPickupTime(totalItems))
+  const [storeOpen, setStoreOpen] = useState(() => isStoreOpen())
 
   // 每 60 秒更新最早取餐時間，避免頁面停留過久後 hint 過期
   useEffect(() => {
     setPickupLimits(getMinPickupTime(totalItems))
-    const timer = setInterval(() => setPickupLimits(getMinPickupTime(totalItems)), 60_000)
+    setStoreOpen(isStoreOpen())
+    const timer = setInterval(() => {
+      setPickupLimits(getMinPickupTime(totalItems))
+      setStoreOpen(isStoreOpen())
+    }, 60_000)
     return () => clearInterval(timer)
   }, [totalItems])
 
@@ -147,13 +158,17 @@ export function OrderForm() {
             type="tel"
             required
             pattern=".*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*"
-            title={language === 'zh' ? '請輸入有效的電話號碼（至少10碼）' : 'Please enter a valid phone number (at least 10 digits)'}
+            title={t('order.phoneValidation')}
             placeholder={t('order.phonePlaceholder')}
           />
         </div>
         <div>
           <Label htmlFor="pickup_time">{t('order.pickupTime')} *</Label>
-          {minTime > '19:00' ? (
+          {!storeOpen ? (
+            <p className="mt-1 text-sm text-destructive font-medium">
+              {t('order.closedToday')}
+            </p>
+          ) : minTime > '19:00' ? (
             <p className="mt-1 text-sm text-destructive font-medium">
               {language === 'zh'
                 ? `準備時間需 ${prepMinutes} 分鐘，已超過今日營業時間（7PM），請明日再訂`
@@ -193,7 +208,7 @@ export function OrderForm() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" className="w-full" size="lg" disabled={loading || minTime > '19:00'}>
+      <Button type="submit" className="w-full" size="lg" disabled={loading || !storeOpen || minTime > '19:00'}>
         {loading ? t('common.loading') : t('order.submit')}
       </Button>
     </form>

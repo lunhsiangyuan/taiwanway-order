@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { PRODUCTS } from '@/lib/menu-data'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { customer_name, customer_phone, pickup_time, note, items, total_amount } = body
+    const { customer_name, customer_phone, pickup_time, note, items } = body
 
     // 驗證必填欄位
     if (!customer_name || !customer_phone || !pickup_time || !items?.length) {
@@ -22,6 +23,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Pickup time must be between 11:00 and 19:00' }, { status: 400 })
     }
 
+    // 驗證營業日（週一=1, 週二=2, 週五=5, 週六=6）
+    const today = new Date().getDay()
+    if (![1, 2, 5, 6].includes(today)) {
+      return NextResponse.json({ error: 'Store is closed today' }, { status: 400 })
+    }
+
+    // 伺服器端重算金額（防止客戶端篡改）
+    const TAX_RATE = 0.08125
+    let serverSubtotal = 0
+    for (const item of items) {
+      const product = PRODUCTS.find(p => p.id === item.product_id)
+      if (!product) {
+        return NextResponse.json({ error: `Product not found: ${item.product_id}` }, { status: 400 })
+      }
+      if (!product.available) {
+        return NextResponse.json({ error: `Product unavailable: ${item.product_id}` }, { status: 400 })
+      }
+      serverSubtotal += product.price * item.quantity
+      // 覆寫客戶端的 unit_price 為伺服器端的真實價格
+      item.unit_price = product.price
+    }
+    const serverTax = Math.round(serverSubtotal * TAX_RATE * 100) / 100
+    const serverTotal = serverSubtotal + serverTax
+
     const supabase = createServerClient()
 
     const { data, error } = await supabase
@@ -32,7 +57,7 @@ export async function POST(request: Request) {
         pickup_time,
         note: note || null,
         items,
-        total_amount,
+        total_amount: serverTotal,
         status: 'pending',
       })
       .select('id')
@@ -41,7 +66,7 @@ export async function POST(request: Request) {
     if (error) throw error
 
     // 嘗試發送 email 通知（非阻塞）
-    sendNotificationEmail(data.id, customer_name, customer_phone, pickup_time, items, total_amount).catch(console.error)
+    sendNotificationEmail(data.id, customer_name, customer_phone, pickup_time, items, serverTotal).catch(console.error)
 
     return NextResponse.json({ id: data.id })
   } catch (err) {
