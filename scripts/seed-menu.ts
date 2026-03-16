@@ -524,7 +524,7 @@ async function seedCategories() {
 async function seedProducts() {
   console.log(`正在寫入 ${PRODUCTS_SEED.length} 個產品...`)
   const { error } = await supabase
-    .from('products')
+    .from('menu_items')
     .upsert(PRODUCTS_SEED, { onConflict: 'id' })
   if (error) throw new Error(`產品寫入失敗: ${error.message}`)
   console.log(`✓ 產品寫入完成 (${PRODUCTS_SEED.length} 筆)`)

@@ -35,15 +35,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Payment nonce required for card payment' }, { status: 400 })
     }
 
-    // --- Server-side price validation from DB ---
+    // --- Server-side price + name validation from DB (batch query) ---
     const supabase = createServerClient()
+    const productIds = items.map((i: any) => i.product_id)
+    const { data: products } = await supabase
+      .from('menu_items')
+      .select('id, name, price, available')
+      .in('id', productIds)
+    const productMap = new Map((products || []).map((p: any) => [p.id, p]))
+
     let serverSubtotal = 0
     for (const item of items) {
-      const { data: product } = await supabase
-        .from('menu_items')
-        .select('id, price, available')
-        .eq('id', item.product_id)
-        .single()
+      const product = productMap.get(item.product_id)
       if (!product) {
         return NextResponse.json({ error: `Product not found: ${item.product_id}` }, { status: 400 })
       }
@@ -52,6 +55,8 @@ export async function POST(request: Request) {
       }
       serverSubtotal += Number(product.price) * item.quantity
       item.unit_price = Number(product.price)
+      // Override client-sent product_name with server-side truth
+      item.product_name = product.name?.en || item.product_name
     }
     const serverTax = Math.round(serverSubtotal * TAX_RATE * 100) / 100
     const serverTotal = Math.round((serverSubtotal + serverTax) * 100) / 100
@@ -62,6 +67,7 @@ export async function POST(request: Request) {
     let receiptUrl: string | null = null
 
     if (isSquareConfigured()) {
+      // Create Square order first
       const squareOrder = await createSquareOrder({
         lineItems: items.map((item: any) => ({
           name: item.product_name,
@@ -78,11 +84,24 @@ export async function POST(request: Request) {
       })
       squareOrderId = squareOrder.orderId || null
 
+      // Process card payment — if it fails, still save order with failed status
       if (payment_method === 'card' && squareOrderId) {
-        const totalCents = BigInt(Math.round(serverTotal * 100))
-        const paymentResult = await processPayment(payment_nonce, squareOrderId, totalCents)
-        squarePaymentId = paymentResult.paymentId
-        receiptUrl = paymentResult.receiptUrl || null
+        try {
+          const totalCents = BigInt(Math.round(serverTotal * 100))
+          const paymentResult = await processPayment(payment_nonce, squareOrderId, totalCents)
+          squarePaymentId = paymentResult.paymentId
+          receiptUrl = paymentResult.receiptUrl || null
+        } catch (paymentErr: any) {
+          // Save the order as payment_failed so it's not orphaned
+          await supabase.from('orders').insert({
+            customer_name, customer_phone, pickup_time,
+            note: note || null, items, total_amount: serverTotal,
+            status: 'cancelled', payment_method: 'card',
+            square_order_id: squareOrderId,
+          })
+          const msg = paymentErr?.errors?.[0]?.detail || paymentErr?.message || 'Payment failed'
+          return NextResponse.json({ error: msg }, { status: 402 })
+        }
       }
     }
 

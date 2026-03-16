@@ -13,7 +13,12 @@ export async function POST(request: Request) {
     }
   }
 
-  const event: SquareWebhookEvent = JSON.parse(body)
+  let event: SquareWebhookEvent
+  try {
+    event = JSON.parse(body)
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
   const supabase = createServerClient()
 
   switch (event.type) {

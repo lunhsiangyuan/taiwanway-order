@@ -42,6 +42,7 @@ export function SquarePaymentForm({
             onError(token.errors.map((e: any) => e.message).join(', '))
             setProcessing(false)
           } else if (token.token) {
+            setProcessing(true)
             onPaymentNonce(token.token)
           }
         }}
