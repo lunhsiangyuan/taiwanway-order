@@ -18,7 +18,10 @@ export interface Order {
   note?: string
   status: 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled'
   total_amount: number
-  payment_method?: 'zelle' | 'venmo' | 'cash'
+  payment_method?: 'card' | 'cash' | 'zelle' | 'venmo'
+  square_order_id?: string
+  square_payment_id?: string
+  receipt_url?: string
   created_at: string
 }
 
