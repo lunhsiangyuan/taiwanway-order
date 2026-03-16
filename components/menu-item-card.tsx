@@ -21,21 +21,23 @@ export function MenuItemCard({ product }: { product: OrderableProduct }) {
 
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">
-      {/* 圖片區塊 — 使用 placeholder 背景色 */}
-      <div className="relative aspect-[4/3] bg-muted flex items-center justify-center">
-        <span className="text-4xl">
-          {product.category === 'main-dishes' ? '🍚' :
-           product.category === 'combo' ? '🍱' :
-           product.category === 'taiwanese-black-tea' ? '🧋' :
-           product.category === 'caffeine-free' ? '🥛' :
-           product.category === 'jasmine-green-tea' ? '🌿' :
-           product.category === 'oolong' ? '🍃' :
-           product.category === 'matcha' ? '🍵' :
-           product.category === 'fruit-tea' ? '🍹' :
-           product.category === 'coffee' ? '☕' :
-           product.category === 'pot-brewed' ? '🫖' :
-           product.category === 'desserts' ? '🍍' : '🍽️'}
-        </span>
+      {/* 圖片區塊 — 有照片用 img，否則 fallback emoji */}
+      <div className="relative aspect-[4/3] bg-muted flex items-center justify-center overflow-hidden">
+        {product.image && !product.image.endsWith('.webp') ? (
+          <img
+            src={product.image}
+            alt={product.name.en}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <span className="text-4xl">
+            {product.category === 'main-dishes' ? '🍚' :
+             product.category === 'desserts' ? '🍍' :
+             product.category === 'matcha' ? '🍵' :
+             product.category === 'oolong' ? '🍃' : '🧋'}
+          </span>
+        )}
         {!product.available && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
             <span className="rounded bg-white px-3 py-1 text-sm font-bold text-destructive">

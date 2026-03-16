@@ -22,9 +22,14 @@ export function MenuGrid({ products, categories }: MenuGridProps) {
   return (
     <div>
       {/* 頁面標題（從 order/page.tsx 移入，因為此為 client component） */}
-      <h1 className="mb-6 font-heading text-3xl font-bold">
+      <h1 className="mb-4 font-heading text-3xl font-bold">
         {language === 'zh' ? '菜單' : 'Menu'}
       </h1>
+      <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+        {language === 'zh'
+          ? '📍 所有訂單皆為到店自取 | All orders are for pickup only'
+          : '📍 All orders are for in-store pickup only'}
+      </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
         <Button

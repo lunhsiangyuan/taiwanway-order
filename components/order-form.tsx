@@ -209,6 +209,16 @@ export function OrderForm() {
         </div>
       </div>
 
+      {/* 到店自取提示 */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
+        <p className="font-medium">📍 {language === 'zh' ? '到店自取' : 'In-store Pickup'}</p>
+        <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">
+          {language === 'zh'
+            ? '不論刷卡或付現，請於指定時間到店取餐'
+            : 'Whether paying by card or cash, please pick up your order at the store at the scheduled time'}
+        </p>
+      </div>
+
       {/* Payment method */}
       {HAS_SQUARE ? (
         <PaymentMethodSelector selected={paymentMethod} onSelect={setPaymentMethod} />

@@ -11,10 +11,12 @@ export default async function OrderPage() {
   ])
 
   const available = products.filter(p => p.available)
+  const activeCategoryIds = new Set(available.map(p => p.category))
+  const activeCategories = categories.filter(c => activeCategoryIds.has(c.id))
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <MenuGrid products={available} categories={categories} />
+      <MenuGrid products={available} categories={activeCategories} />
     </div>
   )
 }
