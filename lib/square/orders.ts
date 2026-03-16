@@ -1,7 +1,9 @@
-// lib/square/orders.ts
+// lib/square/orders.ts — Square SDK v44 (client.orders.create / .update)
 import { getSquareClient, getLocationId } from './client'
 import type { CreateSquareOrderParams } from './types'
 import { randomUUID } from 'crypto'
+
+const TAX_RATE_PERCENT = '8.125' // Middletown, NY (Orange County)
 
 export async function createSquareOrder(params: CreateSquareOrderParams) {
   const client = getSquareClient()
@@ -13,8 +15,8 @@ export async function createSquareOrder(params: CreateSquareOrderParams) {
   today.setHours(Number(hh), Number(mm), 0, 0)
   const pickupAt = today.toISOString()
 
-  const idempotencyKey = randomUUID()
-  const response = await client.ordersApi.createOrder({
+  // SDK v44: client.orders.create({ ... })
+  const response = await client.orders.create({
     order: {
       locationId,
       lineItems: params.lineItems.map(item => ({
@@ -25,6 +27,13 @@ export async function createSquareOrder(params: CreateSquareOrderParams) {
           currency: 'USD',
         },
       })),
+      // Include tax so POS/receipt shows correct total (fixes I3)
+      taxes: [{
+        uid: 'ny-sales-tax',
+        name: 'NY Sales Tax',
+        percentage: TAX_RATE_PERCENT,
+        scope: 'ORDER',
+      }],
       fulfillments: [
         {
           type: 'PICKUP',
@@ -40,12 +49,13 @@ export async function createSquareOrder(params: CreateSquareOrderParams) {
         },
       ],
     },
-    idempotencyKey,
+    idempotencyKey: randomUUID(),
   })
 
+  const order = response.body?.order
   return {
-    orderId: response.result.order?.id,
-    version: response.result.order?.version,
+    orderId: order?.id,
+    version: order?.version,
   }
 }
 
@@ -56,7 +66,9 @@ export async function updateSquareOrderFulfillment(
   version: number,
 ) {
   const client = getSquareClient()
-  await client.ordersApi.updateOrder(orderId, {
+  // SDK v44: client.orders.update({ orderId, ... })
+  await client.orders.update({
+    orderId,
     order: {
       locationId: getLocationId(),
       fulfillments: [{ uid: fulfillmentUid, state }],

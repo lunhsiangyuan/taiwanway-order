@@ -1,20 +1,22 @@
-import crypto from 'crypto'
+// lib/square/webhooks.ts — Square SDK v44 WebhooksHelper
+import { WebhooksHelper } from 'square'
 
-export function verifyWebhookSignature(
+// Fail-closed: reject ALL webhooks if signature key is not configured
+// C3 fix: previous version was fail-open (accepted when key missing)
+export async function verifyWebhookSignature(
   body: string,
   signature: string,
-): boolean {
+): Promise<boolean> {
   const key = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY
   const url = process.env.SQUARE_WEBHOOK_URL
-  if (!key || !url) return false
-  const hmac = crypto.createHmac('sha256', key)
-  hmac.update(url + body)
-  const expected = hmac.digest('base64')
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-  } catch {
-    return false
-  }
+  if (!key || !url) return false // no key = reject (fail-closed)
+
+  return WebhooksHelper.verifySignature({
+    requestBody: body,
+    signatureHeader: signature,
+    signatureKey: key,
+    notificationUrl: url,
+  })
 }
 
 export type SquareWebhookEvent = {

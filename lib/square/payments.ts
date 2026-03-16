@@ -1,4 +1,4 @@
-// lib/square/payments.ts
+// lib/square/payments.ts — Square SDK v44 (client.payments.create)
 import { getSquareClient, getLocationId } from './client'
 import type { SquarePaymentResult } from './types'
 import { randomUUID } from 'crypto'
@@ -10,7 +10,8 @@ export async function processPayment(
 ): Promise<SquarePaymentResult> {
   const client = getSquareClient()
 
-  const response = await client.paymentsApi.createPayment({
+  // SDK v44: client.payments.create({ ... })
+  const response = await client.payments.create({
     sourceId,
     idempotencyKey: randomUUID(),
     amountMoney: {
@@ -22,7 +23,8 @@ export async function processPayment(
     autocomplete: true,
   })
 
-  const payment = response.result.payment!
+  const payment = response.body?.payment
+  if (!payment) throw new Error('No payment returned from Square')
   return {
     paymentId: payment.id!,
     orderId: payment.orderId!,

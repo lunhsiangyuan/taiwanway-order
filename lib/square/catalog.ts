@@ -6,13 +6,14 @@ export async function syncCatalogFromSquare() {
   const client = getSquareClient()
   const supabase = createServerClient()
 
-  const response = await client.catalogApi.searchCatalogObjects({
+  // SDK v44: client.catalog.searchObjects({ ... })
+  const response = await client.catalog.searchObjects({
     objectTypes: ['ITEM'],
     includeRelatedObjects: true,
     includeDeletedObjects: false,
   })
 
-  const items = response.result.objects || []
+  const items = response.body?.objects || []
   let updated = 0
 
   for (const item of items) {

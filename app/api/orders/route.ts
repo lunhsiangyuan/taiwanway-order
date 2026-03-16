@@ -31,8 +31,14 @@ export async function POST(request: Request) {
     if (![1, 2, 5, 6].includes(today)) {
       return NextResponse.json({ error: 'Store is closed today' }, { status: 400 })
     }
-    if (payment_method === 'card' && !payment_nonce) {
-      return NextResponse.json({ error: 'Payment nonce required for card payment' }, { status: 400 })
+    // Validate card payment requires both nonce AND server-side Square config
+    if (payment_method === 'card') {
+      if (!payment_nonce) {
+        return NextResponse.json({ error: 'Payment nonce required for card payment' }, { status: 400 })
+      }
+      if (!isSquareConfigured()) {
+        return NextResponse.json({ error: 'Card payments not available' }, { status: 400 })
+      }
     }
 
     // --- Server-side price + name validation from DB (batch query) ---
@@ -55,58 +61,18 @@ export async function POST(request: Request) {
       }
       serverSubtotal += Number(product.price) * item.quantity
       item.unit_price = Number(product.price)
-      // Override client-sent product_name with server-side truth
       item.product_name = product.name?.en || item.product_name
     }
     const serverTax = Math.round(serverSubtotal * TAX_RATE * 100) / 100
     const serverTotal = Math.round((serverSubtotal + serverTax) * 100) / 100
 
-    // --- Square integration (only if configured) ---
+    // --- C2 fix: Save to Supabase FIRST (as 'pending'), then process payment ---
+    // This ensures we never have a charged card with no local order record
     let squareOrderId: string | null = null
     let squarePaymentId: string | null = null
     let receiptUrl: string | null = null
 
-    if (isSquareConfigured()) {
-      // Create Square order first
-      const squareOrder = await createSquareOrder({
-        lineItems: items.map((item: any) => ({
-          name: item.product_name,
-          quantity: item.quantity,
-          basePriceMoney: {
-            amount: BigInt(Math.round(item.unit_price * 100)),
-            currency: 'USD',
-          },
-        })),
-        pickupTime: pickup_time,
-        customerName: customer_name,
-        customerPhone: customer_phone,
-        note,
-      })
-      squareOrderId = squareOrder.orderId || null
-
-      // Process card payment — if it fails, still save order with failed status
-      if (payment_method === 'card' && squareOrderId) {
-        try {
-          const totalCents = BigInt(Math.round(serverTotal * 100))
-          const paymentResult = await processPayment(payment_nonce, squareOrderId, totalCents)
-          squarePaymentId = paymentResult.paymentId
-          receiptUrl = paymentResult.receiptUrl || null
-        } catch (paymentErr: any) {
-          // Save the order as payment_failed so it's not orphaned
-          await supabase.from('orders').insert({
-            customer_name, customer_phone, pickup_time,
-            note: note || null, items, total_amount: serverTotal,
-            status: 'cancelled', payment_method: 'card',
-            square_order_id: squareOrderId,
-          })
-          const msg = paymentErr?.errors?.[0]?.detail || paymentErr?.message || 'Payment failed'
-          return NextResponse.json({ error: msg }, { status: 402 })
-        }
-      }
-    }
-
-    // --- Save to Supabase ---
-    const { data, error } = await supabase
+    const { data: orderRow, error: insertErr } = await supabase
       .from('orders')
       .insert({
         customer_name,
@@ -117,19 +83,68 @@ export async function POST(request: Request) {
         total_amount: serverTotal,
         status: 'pending',
         payment_method: payment_method || 'cash',
-        square_order_id: squareOrderId,
-        square_payment_id: squarePaymentId,
-        receipt_url: receiptUrl,
       })
       .select('id')
       .single()
 
-    if (error) throw error
+    if (insertErr) throw insertErr
+    const orderId = orderRow.id
 
-    sendNotificationEmail(data.id, customer_name, customer_phone, pickup_time, items, serverTotal).catch(console.error)
+    // --- Square integration (only for card payments when configured) ---
+    // Cash orders skip Square entirely — they always succeed even if Square is down (I2 fix)
+    if (isSquareConfigured() && payment_method === 'card') {
+      try {
+        // Create Square order
+        const squareOrder = await createSquareOrder({
+          lineItems: items.map((item: any) => ({
+            name: item.product_name,
+            quantity: item.quantity,
+            basePriceMoney: {
+              amount: BigInt(Math.round(item.unit_price * 100)),
+              currency: 'USD',
+            },
+          })),
+          pickupTime: pickup_time,
+          customerName: customer_name,
+          customerPhone: customer_phone,
+          note,
+        })
+        squareOrderId = squareOrder.orderId || null
+
+        // Process card payment
+        if (squareOrderId) {
+          const totalCents = BigInt(Math.round(serverTotal * 100))
+          const paymentResult = await processPayment(payment_nonce, squareOrderId, totalCents)
+          squarePaymentId = paymentResult.paymentId
+          receiptUrl = paymentResult.receiptUrl || null
+        }
+
+        // Update order with Square IDs on success
+        await supabase
+          .from('orders')
+          .update({
+            square_order_id: squareOrderId,
+            square_payment_id: squarePaymentId,
+            receipt_url: receiptUrl,
+            status: 'confirmed', // card paid = confirmed
+          })
+          .eq('id', orderId)
+      } catch (paymentErr: any) {
+        // Payment failed — mark order as cancelled, return error
+        await supabase
+          .from('orders')
+          .update({ status: 'cancelled', square_order_id: squareOrderId })
+          .eq('id', orderId)
+        const msg = paymentErr?.errors?.[0]?.detail || paymentErr?.message || 'Payment failed'
+        return NextResponse.json({ error: msg, order_id: orderId }, { status: 402 })
+      }
+    }
+
+    // Non-blocking email notification
+    sendNotificationEmail(orderId, customer_name, customer_phone, pickup_time, items, serverTotal).catch(console.error)
 
     return NextResponse.json({
-      id: data.id,
+      id: orderId,
       square_order_id: squareOrderId,
       receipt_url: receiptUrl,
     })

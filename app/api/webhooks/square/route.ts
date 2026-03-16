@@ -6,11 +6,11 @@ export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get('x-square-hmacsha256-signature') || ''
 
-  // 驗證簽名（若無金鑰則略過開發環境驗證）
-  if (process.env.SQUARE_WEBHOOK_SIGNATURE_KEY) {
-    if (!verifyWebhookSignature(body, signature)) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
-    }
+  // C3 fix: ALWAYS verify signature (fail-closed)
+  // verifyWebhookSignature returns false when key is not configured
+  const valid = await verifyWebhookSignature(body, signature)
+  if (!valid) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
   }
 
   let event: SquareWebhookEvent
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
+
   const supabase = createServerClient()
 
   switch (event.type) {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     case 'catalog.version.updated': {
-      console.log('[webhook] 目錄已更新:', event.data.id)
+      console.log('[webhook] Catalog updated:', event.data.id)
       break
     }
 
@@ -52,16 +53,18 @@ export async function POST(request: Request) {
       const paymentId = event.data.id
       const status = event.data.object?.payment?.status
       if (status === 'COMPLETED') {
+        // Avoid status downgrade: only promote to 'confirmed' if currently 'pending'
         await supabase
           .from('orders')
           .update({ status: 'confirmed' })
           .eq('square_payment_id', paymentId)
+          .eq('status', 'pending')
       }
       break
     }
 
     default:
-      console.log(`[webhook] 未處理的事件: ${event.type}`)
+      console.log(`[webhook] Unhandled event: ${event.type}`)
   }
 
   return NextResponse.json({ received: true })

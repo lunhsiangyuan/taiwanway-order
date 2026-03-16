@@ -1,32 +1,33 @@
 // lib/square/client.ts
-import { Client, Environment } from 'square'
+import { SquareClient, SquareEnvironment } from 'square'
 
-// Square SDK uses BigInt internally; ensure JSON serialization works
+// Square SDK v44 uses BigInt internally; ensure JSON serialization works
+// Known workaround — remove when SDK handles this natively
 if (typeof BigInt !== 'undefined') {
   (BigInt.prototype as any).toJSON = function () {
     return this.toString()
   }
 }
 
-let _client: Client | null = null
+let _client: SquareClient | null = null
 
 // Check if Square is configured (call before any Square operation)
 export function isSquareConfigured(): boolean {
   return !!(process.env.SQUARE_ACCESS_TOKEN && process.env.SQUARE_LOCATION_ID)
 }
 
-export function getSquareClient(): Client {
+export function getSquareClient(): SquareClient {
   if (_client) return _client
 
-  const accessToken = process.env.SQUARE_ACCESS_TOKEN
-  if (!accessToken) throw new Error('SQUARE_ACCESS_TOKEN is not set')
+  const token = process.env.SQUARE_ACCESS_TOKEN
+  if (!token) throw new Error('SQUARE_ACCESS_TOKEN is not set')
 
-  _client = new Client({
-    accessToken,
+  _client = new SquareClient({
+    token,
     environment:
       process.env.SQUARE_ENVIRONMENT === 'production'
-        ? Environment.Production
-        : Environment.Sandbox,
+        ? SquareEnvironment.Production
+        : SquareEnvironment.Sandbox,
   })
 
   return _client
