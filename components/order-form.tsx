@@ -233,11 +233,13 @@ export function OrderForm() {
         />
       )}
 
-      {/* Confirmation warning */}
-      <div className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <p>{t('order.confirmWarning')}</p>
-      </div>
+      {/* Confirmation warning — only for cash (card payment = order confirmed immediately) */}
+      {paymentMethod === 'cash' && (
+        <div className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{t('order.confirmWarning')}</p>
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
