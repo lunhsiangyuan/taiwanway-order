@@ -1,13 +1,8 @@
 // lib/square/client.ts
 import { SquareClient, SquareEnvironment } from 'square'
 
-// Square SDK v44 uses BigInt internally; ensure JSON serialization works
-// Known workaround — remove when SDK handles this natively
-if (typeof BigInt !== 'undefined') {
-  (BigInt.prototype as any).toJSON = function () {
-    return this.toString()
-  }
-}
+// SDK v44 has its own BigInt-safe toJson() — do NOT add BigInt.prototype.toJSON
+// (it would convert BigInt to string before SDK's replacer sees it, causing "Expected integer" errors)
 
 let _client: SquareClient | null = null
 
