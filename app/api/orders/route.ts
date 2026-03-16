@@ -178,15 +178,17 @@ async function sendNotificationEmail(
   items: Array<{ product_name: string; quantity: number; unit_price: number }>, total: number,
 ) {
   const apiKey = process.env.RESEND_API_KEY
-  const storeEmail = process.env.STORE_EMAIL
-  if (!apiKey || !storeEmail) return
+  const storeEmails = process.env.STORE_EMAIL
+  if (!apiKey || !storeEmails) return
+  // Support comma-separated emails: "a@x.com,b@x.com"
+  const recipients = storeEmails.split(',').map(e => e.trim()).filter(Boolean)
   const itemList = items.map(i => `${i.product_name} x${i.quantity} — $${(i.unit_price * i.quantity).toFixed(2)}`).join('\n')
   const { Resend } = await import('resend')
   const resend = new Resend(apiKey)
   await resend.emails.send({
-    from: 'TaiwanWay Orders <orders@taiwanway.com>',
-    to: storeEmail,
-    subject: `New Order #${orderId.slice(0, 8).toUpperCase()} — ${name}`,
-    text: `New order!\n\nCustomer: ${name}\nPhone: ${phone}\nPickup: ${pickupTime}\n\nItems:\n${itemList}\n\nTotal: $${total.toFixed(2)}`,
+    from: 'TaiwanWay Orders <orders@taiwanwayny.com>',
+    to: recipients,
+    subject: `🧋 New Order #${orderId.slice(0, 8).toUpperCase()} — ${name}`,
+    text: `New order received!\n\nCustomer: ${name}\nPhone: ${phone}\nPickup: ${pickupTime}\n\nItems:\n${itemList}\n\nTotal: $${total.toFixed(2)}\n\nPlease call the customer to confirm.`,
   })
 }
