@@ -27,8 +27,10 @@ export async function POST(request: Request) {
     if (!/^\d{2}:\d{2}$/.test(pickup_time) || pickup_time < '11:00' || pickup_time > '19:00') {
       return NextResponse.json({ error: 'Pickup time must be between 11:00 and 19:00' }, { status: 400 })
     }
-    const today = new Date().getDay()
-    if (![1, 2, 5, 6].includes(today)) {
+    // Use NY timezone (Vercel servers run UTC)
+    const nyNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const todayDay = nyNow.getDay()
+    if (![1, 2, 5, 6].includes(todayDay)) {
       return NextResponse.json({ error: 'Store is closed today' }, { status: 400 })
     }
     // Validate card payment requires both nonce AND server-side Square config

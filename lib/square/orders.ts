@@ -9,11 +9,14 @@ export async function createSquareOrder(params: CreateSquareOrderParams) {
   const client = getSquareClient()
   const locationId = getLocationId()
 
-  // Convert pickup time string (HH:MM) to ISO 8601 for today
-  const today = new Date()
+  // Convert pickup time (HH:MM) to RFC 3339 with correct NY offset (handles DST)
   const [hh, mm] = params.pickupTime.split(':')
-  today.setHours(Number(hh), Number(mm), 0, 0)
-  const pickupAt = today.toISOString()
+  const nyDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) // "2026-03-16"
+  const tzPart = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', timeZoneName: 'longOffset',
+  }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || 'GMT-05:00'
+  const tzOffset = tzPart.replace('GMT', '') // "-04:00" (EDT) or "-05:00" (EST)
+  const pickupAt = `${nyDate}T${hh}:${mm}:00${tzOffset}`
 
   // SDK v44: client.orders.create({ ... })
   const response = await client.orders.create({
