@@ -24,14 +24,15 @@ export function MenuItemCard({ product }: { product: OrderableProduct }) {
       {/* 圖片區塊 — 使用 placeholder 背景色 */}
       <div className="relative aspect-[4/3] bg-muted flex items-center justify-center">
         <span className="text-4xl">
-          {product.category === 'rice-dishes' ? '🍚' :
-           product.category === 'noodle-soups' ? '🍜' :
-           product.category === 'old-fashioned' ? '🍵' :
+          {product.category === 'main-dishes' ? '🍚' :
+           product.category === 'combo' ? '🍱' :
            product.category === 'taiwanese-black-tea' ? '🧋' :
            product.category === 'caffeine-free' ? '🥛' :
            product.category === 'jasmine-green-tea' ? '🌿' :
            product.category === 'oolong' ? '🍃' :
            product.category === 'matcha' ? '🍵' :
+           product.category === 'fruit-tea' ? '🍹' :
+           product.category === 'coffee' ? '☕' :
            product.category === 'pot-brewed' ? '🫖' :
            product.category === 'desserts' ? '🍍' : '🍽️'}
         </span>

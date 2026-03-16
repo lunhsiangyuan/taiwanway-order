@@ -1,15 +1,18 @@
-'use client'
-
-import { useLanguage } from '@/lib/i18n/language-context'
+// app/order/page.tsx — Server Component
+import { getProducts, getCategories } from '@/lib/menu-service'
 import { MenuGrid } from '@/components/menu-grid'
 
-export default function OrderPage() {
-  const { t } = useLanguage()
+export default async function OrderPage() {
+  const [products, categories] = await Promise.all([
+    getProducts(),
+    getCategories(),
+  ])
+
+  const available = products.filter(p => p.available)
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 font-heading text-3xl font-bold">{t('menu.title')}</h1>
-      <MenuGrid />
+      <MenuGrid products={available} categories={categories} />
     </div>
   )
 }

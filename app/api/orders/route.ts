@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { PRODUCTS } from '@/lib/menu-data'
 
 export async function POST(request: Request) {
   try {
@@ -31,23 +30,27 @@ export async function POST(request: Request) {
 
     // 伺服器端重算金額（防止客戶端篡改）
     const TAX_RATE = 0.08125
+    const supabase = createServerClient()
+
     let serverSubtotal = 0
     for (const item of items) {
-      const product = PRODUCTS.find(p => p.id === item.product_id)
+      const { data: product } = await supabase
+        .from('menu_items')
+        .select('id, price, available')
+        .eq('id', item.product_id)
+        .single()
       if (!product) {
         return NextResponse.json({ error: `Product not found: ${item.product_id}` }, { status: 400 })
       }
       if (!product.available) {
         return NextResponse.json({ error: `Product unavailable: ${item.product_id}` }, { status: 400 })
       }
-      serverSubtotal += product.price * item.quantity
+      serverSubtotal += Number(product.price) * item.quantity
       // 覆寫客戶端的 unit_price 為伺服器端的真實價格
-      item.unit_price = product.price
+      item.unit_price = Number(product.price)
     }
     const serverTax = Math.round(serverSubtotal * TAX_RATE * 100) / 100
     const serverTotal = serverSubtotal + serverTax
-
-    const supabase = createServerClient()
 
     const { data, error } = await supabase
       .from('orders')
