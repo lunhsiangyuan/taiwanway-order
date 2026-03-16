@@ -2,15 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle } from 'lucide-react'
 import { useCart } from '@/lib/cart-context'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { PaymentMethodSelector, type PaymentMethod } from './payment-info'
 import { SquarePaymentForm } from './square-payment-form'
 
 const SQUARE_APP_ID = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
@@ -41,7 +38,6 @@ export function OrderForm() {
   const [timeError, setTimeError] = useState('')
   const [pickupLimits, setPickupLimits] = useState(() => getMinPickupTime(totalItems))
   const [storeOpen, setStoreOpen] = useState(() => isStoreOpen())
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(HAS_SQUARE ? 'card' : 'cash')
   const [paymentNonce, setPaymentNonce] = useState<string | null>(null)
 
   useEffect(() => {
@@ -99,7 +95,7 @@ export function OrderForm() {
         unit_price: i.product.price,
       })),
       total_amount: totalAmount,
-      payment_method: paymentMethod,
+      payment_method: 'card',
       payment_nonce: nonce || undefined,
     }
 
@@ -121,11 +117,8 @@ export function OrderForm() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (paymentMethod === 'cash') {
-      submitOrder(new FormData(e.currentTarget))
-    }
     // Card flow: user clicks SquarePaymentForm button → nonce → useEffect auto-submits
   }
 
@@ -214,51 +207,28 @@ export function OrderForm() {
         <p className="font-medium">📍 {language === 'zh' ? '到店自取' : 'In-store Pickup'}</p>
         <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">
           {language === 'zh'
-            ? '不論刷卡或付現，請於指定時間到店取餐'
-            : 'Whether paying by card or cash, please pick up your order at the store at the scheduled time'}
+            ? '線上付款完成後，請於指定時間到店取餐'
+            : 'After payment, please pick up your order at the store at the scheduled time'}
         </p>
       </div>
 
-      {/* Payment method */}
+      {/* Payment — card / Apple Pay / Google Pay */}
       {HAS_SQUARE ? (
-        <PaymentMethodSelector selected={paymentMethod} onSelect={setPaymentMethod} />
-      ) : (
-        <div className="rounded-lg border bg-muted/50 p-4">
-          <h3 className="mb-2 font-semibold">{language === 'zh' ? '付款方式' : 'Payment'}</h3>
-          <p className="text-sm text-muted-foreground">
-            {language === 'zh' ? '到店付現' : 'Pay cash at pickup'}
-          </p>
-        </div>
-      )}
-
-      {/* Square credit card form */}
-      {paymentMethod === 'card' && HAS_SQUARE && (
         <SquarePaymentForm
           applicationId={SQUARE_APP_ID}
           locationId={SQUARE_LOC_ID}
           amount={totalAmount}
-          disabled={loading}
+          disabled={loading || !storeOpen || minTime > '19:00'}
           onPaymentNonce={(nonce) => setPaymentNonce(nonce)}
           onError={(msg) => setError(msg)}
         />
-      )}
-
-      {/* Confirmation warning — only for cash (card payment = order confirmed immediately) */}
-      {paymentMethod === 'cash' && (
-        <div className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{t('order.confirmWarning')}</p>
+      ) : (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          {language === 'zh' ? '付款系統暫時無法使用，請稍後再試' : 'Payment system temporarily unavailable'}
         </div>
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {/* Submit button — only for cash; card uses SquarePaymentForm button */}
-      {paymentMethod === 'cash' && (
-        <Button type="submit" className="w-full" size="lg" disabled={loading || !storeOpen || minTime > '19:00'}>
-          {loading ? t('common.loading') : t('order.submit')}
-        </Button>
-      )}
     </form>
   )
 }

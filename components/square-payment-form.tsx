@@ -1,6 +1,6 @@
 'use client'
 
-import { CreditCard, PaymentForm } from 'react-square-web-payments-sdk'
+import { CreditCard, ApplePay, GooglePay, PaymentForm } from 'react-square-web-payments-sdk'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { useState } from 'react'
 
@@ -27,7 +27,7 @@ export function SquarePaymentForm({
   return (
     <div className="rounded-lg border bg-muted/30 p-4">
       <h3 className="mb-3 font-semibold">
-        {language === 'zh' ? '信用卡付款' : 'Credit Card Payment'}
+        {language === 'zh' ? '線上付款' : 'Payment'}
       </h3>
       <p className="mb-3 text-sm text-muted-foreground">
         {language === 'zh'
@@ -52,6 +52,13 @@ export function SquarePaymentForm({
           total: { amount: String(amount), label: 'TaiwanWay Order' },
         })}
       >
+        <ApplePay />
+        <GooglePay />
+        <div className="my-3 flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="h-px flex-1 bg-border" />
+          {language === 'zh' ? '或使用信用卡' : 'or pay with card'}
+          <div className="h-px flex-1 bg-border" />
+        </div>
         <CreditCard
           buttonProps={{
             isLoading: processing || disabled,
