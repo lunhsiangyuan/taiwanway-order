@@ -20,6 +20,17 @@ export async function POST(request: Request) {
     if (!customer_name || !customer_phone || !pickup_time || !items?.length) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+    // Sanitize text inputs (prevent stored XSS)
+    const sanitize = (s: string) => s.replace(/[<>]/g, '')
+    const safeCustomerName = sanitize(String(customer_name)).slice(0, 100)
+    // Validate item quantities
+    for (const item of items) {
+      const qty = Number(item.quantity)
+      if (!Number.isInteger(qty) || qty < 1 || qty > 99) {
+        return NextResponse.json({ error: `Invalid quantity: must be 1-99` }, { status: 400 })
+      }
+      item.quantity = qty
+    }
     const digitsOnly = customer_phone.replace(/\D/g, '')
     if (digitsOnly.length < 10) {
       return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 })
@@ -77,10 +88,10 @@ export async function POST(request: Request) {
     const { data: orderRow, error: insertErr } = await supabase
       .from('orders')
       .insert({
-        customer_name,
+        customer_name: safeCustomerName,
         customer_phone,
         pickup_time,
-        note: note || null,
+        note: note ? sanitize(String(note)).slice(0, 500) : null,
         items,
         total_amount: serverTotal,
         status: 'pending',
@@ -107,7 +118,7 @@ export async function POST(request: Request) {
             },
           })),
           pickupTime: pickup_time,
-          customerName: customer_name,
+          customerName: safeCustomerName,
           customerPhone: customer_phone,
           note,
         })
@@ -143,7 +154,7 @@ export async function POST(request: Request) {
     }
 
     // Non-blocking email notification
-    sendNotificationEmail(orderId, customer_name, customer_phone, pickup_time, items, serverTotal).catch(console.error)
+    sendNotificationEmail(orderId, safeCustomerName, customer_phone, pickup_time, items, serverTotal).catch(console.error)
 
     return NextResponse.json({
       id: orderId,
