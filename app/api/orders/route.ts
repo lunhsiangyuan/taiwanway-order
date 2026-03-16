@@ -158,8 +158,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // Non-blocking email notification
+    // Non-blocking notifications (email + Telegram)
     sendNotificationEmail(orderId, safeCustomerName, customer_phone, pickup_time, items, serverTotal).catch(console.error)
+    sendTelegramNotification(orderId, safeCustomerName, customer_phone, pickup_time, items, serverTotal, payment_method || 'cash').catch(console.error)
 
     return NextResponse.json({
       id: orderId,
@@ -190,5 +191,36 @@ async function sendNotificationEmail(
     to: recipients,
     subject: `🧋 New Order #${orderId.slice(0, 8).toUpperCase()} — ${name}`,
     text: `New order received!\n\nCustomer: ${name}\nPhone: ${phone}\nPickup: ${pickupTime}\n\nItems:\n${itemList}\n\nTotal: $${total.toFixed(2)}\n\nPlease call the customer to confirm.`,
+  })
+}
+
+async function sendTelegramNotification(
+  orderId: string, name: string, phone: string, pickupTime: string,
+  items: Array<{ product_name: string; quantity: number; unit_price: number }>,
+  total: number, paymentMethod: string,
+) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN
+  const chatId = process.env.TELEGRAM_CHAT_ID
+  if (!botToken || !chatId) return
+
+  const paymentLabel = paymentMethod === 'card' ? '💳 信用卡（已付款）' : '💵 到店付現'
+  const itemLines = items.map(i => `  • ${i.product_name} x${i.quantity} — $${(i.unit_price * i.quantity).toFixed(2)}`).join('\n')
+
+  const text = `🧋 <b>新訂單 #${orderId.slice(0, 8).toUpperCase()}</b>
+
+👤 ${name}
+📞 ${phone}
+🕐 取餐：${pickupTime}
+${paymentLabel}
+
+📋 品項：
+${itemLines}
+
+💰 <b>合計：$${total.toFixed(2)}</b>`
+
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
   })
 }
