@@ -1,6 +1,8 @@
-// app/order/page.tsx — Server Component
+// app/order/page.tsx — Server Component (dynamic, not prerendered)
 import { getProducts, getCategories } from '@/lib/menu-service'
 import { MenuGrid } from '@/components/menu-grid'
+
+export const dynamic = 'force-dynamic'
 
 export default async function OrderPage() {
   const [products, categories] = await Promise.all([

@@ -52,7 +52,7 @@ export async function createSquareOrder(params: CreateSquareOrderParams) {
     idempotencyKey: randomUUID(),
   })
 
-  const order = response.body?.order
+  const order = response.order
   return {
     orderId: order?.id,
     version: order?.version,
@@ -72,7 +72,7 @@ export async function updateSquareOrderFulfillment(
     order: {
       locationId: getLocationId(),
       fulfillments: [{ uid: fulfillmentUid, state }],
-      version: BigInt(version),
+      version,
     },
     idempotencyKey: randomUUID(),
   })

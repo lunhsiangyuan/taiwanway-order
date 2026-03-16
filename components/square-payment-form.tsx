@@ -38,12 +38,12 @@ export function SquarePaymentForm({
         applicationId={applicationId}
         locationId={locationId}
         cardTokenizeResponseReceived={(token) => {
-          if (token.errors) {
-            onError(token.errors.map((e: any) => e.message).join(', '))
-            setProcessing(false)
-          } else if (token.token) {
+          if (token.status === 'OK') {
             setProcessing(true)
             onPaymentNonce(token.token)
+          } else if (token.status === 'Error' || token.status === 'Invalid') {
+            onError(token.errors.map((e) => e.message).join(', '))
+            setProcessing(false)
           }
         }}
         createPaymentRequest={() => ({

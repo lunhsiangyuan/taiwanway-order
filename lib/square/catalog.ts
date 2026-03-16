@@ -6,19 +6,22 @@ export async function syncCatalogFromSquare() {
   const client = getSquareClient()
   const supabase = createServerClient()
 
-  // SDK v44: client.catalog.searchObjects({ ... })
-  const response = await client.catalog.searchObjects({
+  // SDK v44: client.catalog.search({ ... })
+  const response = await client.catalog.search({
     objectTypes: ['ITEM'],
     includeRelatedObjects: true,
     includeDeletedObjects: false,
   })
 
-  const items = response.body?.objects || []
+  const items = response.objects || []
   let updated = 0
 
   for (const item of items) {
+    // CatalogObject is a union type; narrow to ITEM
+    if (item.type !== 'ITEM' || !('itemData' in item)) continue
     const catalogId = item.id
-    const variation = item.itemData?.variations?.[0]
+    const itemData = (item as any).itemData
+    const variation = itemData?.variations?.[0]
     if (!variation?.itemVariationData?.priceMoney) continue
 
     const priceCents = Number(variation.itemVariationData.priceMoney.amount)
@@ -28,7 +31,7 @@ export async function syncCatalogFromSquare() {
       .from('menu_items')
       .update({
         price,
-        available: !item.itemData?.isArchived,
+        available: !itemData?.isArchived,
         updated_at: new Date().toISOString(),
       })
       .eq('square_catalog_id', catalogId)

@@ -23,7 +23,7 @@ export async function processPayment(
     autocomplete: true,
   })
 
-  const payment = response.body?.payment
+  const payment = response.payment
   if (!payment) throw new Error('No payment returned from Square')
   return {
     paymentId: payment.id!,
