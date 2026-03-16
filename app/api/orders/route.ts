@@ -44,6 +44,11 @@ export async function POST(request: Request) {
     if (![1, 2, 5, 6].includes(todayDay)) {
       return NextResponse.json({ error: 'Store is closed today' }, { status: 400 })
     }
+    // Validate payment method whitelist
+    const validMethods = ['card', 'cash', 'zelle', 'venmo']
+    if (payment_method && !validMethods.includes(payment_method)) {
+      return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
+    }
     // Validate card payment requires both nonce AND server-side Square config
     if (payment_method === 'card') {
       if (!payment_nonce) {
