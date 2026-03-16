@@ -1,28 +1,43 @@
 'use client'
 
-import { CreditCard, Smartphone, Banknote } from 'lucide-react'
+import { CreditCard, Banknote } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/language-context'
+import { Button } from '@/components/ui/button'
 
-export function PaymentInfo() {
-  const { t } = useLanguage()
+export type PaymentMethod = 'card' | 'cash'
+
+interface PaymentMethodSelectorProps {
+  selected: PaymentMethod
+  onSelect: (method: PaymentMethod) => void
+}
+
+export function PaymentMethodSelector({ selected, onSelect }: PaymentMethodSelectorProps) {
+  const { language } = useLanguage()
 
   return (
-    <div className="rounded-lg border bg-muted/50 p-4">
-      <h3 className="mb-3 font-semibold">{t('order.paymentTitle')}</h3>
-      <p className="mb-3 text-sm text-muted-foreground">{t('order.paymentDesc')}</p>
-      <div className="flex gap-4 text-sm">
-        <div className="flex items-center gap-1.5">
-          <Smartphone className="h-4 w-4 text-primary" />
-          <span>Zelle</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <CreditCard className="h-4 w-4 text-primary" />
-          <span>Venmo</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Banknote className="h-4 w-4 text-primary" />
-          <span>{t('order.paymentCash')}</span>
-        </div>
+    <div className="space-y-3">
+      <h3 className="font-semibold">
+        {language === 'zh' ? '付款方式' : 'Payment Method'}
+      </h3>
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          type="button"
+          variant={selected === 'card' ? 'default' : 'outline'}
+          className="h-auto flex-col gap-1 py-3"
+          onClick={() => onSelect('card')}
+        >
+          <CreditCard className="h-5 w-5" />
+          <span className="text-xs">{language === 'zh' ? '信用卡' : 'Credit Card'}</span>
+        </Button>
+        <Button
+          type="button"
+          variant={selected === 'cash' ? 'default' : 'outline'}
+          className="h-auto flex-col gap-1 py-3"
+          onClick={() => onSelect('cash')}
+        >
+          <Banknote className="h-5 w-5" />
+          <span className="text-xs">{language === 'zh' ? '到店付現' : 'Pay Cash'}</span>
+        </Button>
       </div>
     </div>
   )

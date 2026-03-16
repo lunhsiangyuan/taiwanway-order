@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,12 @@ import { Separator } from '@/components/ui/separator'
 import { AlertTriangle } from 'lucide-react'
 import { useCart } from '@/lib/cart-context'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { PaymentInfo } from './payment-info'
+import { PaymentMethodSelector, type PaymentMethod } from './payment-info'
+import { SquarePaymentForm } from './square-payment-form'
+
+const SQUARE_APP_ID = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
+const SQUARE_LOC_ID = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || ''
+const HAS_SQUARE = !!(SQUARE_APP_ID && SQUARE_LOC_ID)
 
 function getMinPickupTime(totalItems: number): { minTime: string; prepMinutes: number } {
   const prepMinutes = totalItems > 5 ? 60 : 30
@@ -21,7 +26,6 @@ function getMinPickupTime(totalItems: number): { minTime: string; prepMinutes: n
   return { minTime: `${hh}:${mm}`, prepMinutes }
 }
 
-// 營業日：週一(1)、週二(2)、週五(5)、週六(6)
 const OPEN_DAYS = new Set([1, 2, 5, 6])
 function isStoreOpen(): boolean {
   return OPEN_DAYS.has(new Date().getDay())
@@ -31,13 +35,15 @@ export function OrderForm() {
   const { items, totalItems, subtotal, taxAmount, totalAmount, clearCart } = useCart()
   const { language, t } = useLanguage()
   const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [timeError, setTimeError] = useState('')
   const [pickupLimits, setPickupLimits] = useState(() => getMinPickupTime(totalItems))
   const [storeOpen, setStoreOpen] = useState(() => isStoreOpen())
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(HAS_SQUARE ? 'card' : 'cash')
+  const [paymentNonce, setPaymentNonce] = useState<string | null>(null)
 
-  // 每 60 秒更新最早取餐時間，避免頁面停留過久後 hint 過期
   useEffect(() => {
     setPickupLimits(getMinPickupTime(totalItems))
     setStoreOpen(isStoreOpen())
@@ -64,24 +70,28 @@ export function OrderForm() {
     return true
   }, [totalItems, t])
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  // When card nonce received, auto-submit the order
+  useEffect(() => {
+    if (paymentNonce && formRef.current) {
+      submitOrder(new FormData(formRef.current), paymentNonce)
+    }
+  }, [paymentNonce]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submitOrder(formData: FormData, nonce?: string | null) {
     setLoading(true)
     setError('')
 
-    const form = new FormData(e.currentTarget)
-    const pickupTime = form.get('pickup_time') as string
-
+    const pickupTime = formData.get('pickup_time') as string
     if (!validatePickupTime(pickupTime)) {
       setLoading(false)
       return
     }
 
     const payload = {
-      customer_name: form.get('name') as string,
-      customer_phone: form.get('phone') as string,
+      customer_name: formData.get('name') as string,
+      customer_phone: formData.get('phone') as string,
       pickup_time: pickupTime,
-      note: form.get('note') as string || undefined,
+      note: (formData.get('note') as string) || undefined,
       items: items.map(i => ({
         product_id: i.product.id,
         product_name: i.product.name[language],
@@ -89,6 +99,8 @@ export function OrderForm() {
         unit_price: i.product.price,
       })),
       total_amount: totalAmount,
+      payment_method: paymentMethod,
+      payment_nonce: nonce || undefined,
     }
 
     try {
@@ -100,13 +112,21 @@ export function OrderForm() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')
       router.push(`/success?type=order&id=${data.id}`)
-      // 導航啟動後才清空購物車，避免跳轉失敗時購物車已空
       setTimeout(() => clearCart(), 100)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
+      setPaymentNonce(null)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (paymentMethod === 'cash') {
+      submitOrder(new FormData(e.currentTarget))
+    }
+    // Card flow: user clicks SquarePaymentForm button → nonce → useEffect auto-submits
   }
 
   if (items.length === 0) {
@@ -118,8 +138,8 @@ export function OrderForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* 訂單摘要 */}
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+      {/* Order summary */}
       <div className="space-y-2">
         {items.map(item => (
           <div key={item.product.id} className="flex justify-between text-sm">
@@ -144,7 +164,7 @@ export function OrderForm() {
 
       <Separator />
 
-      {/* 客戶資訊 */}
+      {/* Customer info */}
       <div className="space-y-4">
         <div>
           <Label htmlFor="name">{t('order.name')} *</Label>
@@ -153,10 +173,7 @@ export function OrderForm() {
         <div>
           <Label htmlFor="phone">{t('order.phone')} *</Label>
           <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            required
+            id="phone" name="phone" type="tel" required
             pattern=".*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*\d.*"
             title={t('order.phoneValidation')}
             placeholder={t('order.phonePlaceholder')}
@@ -165,9 +182,7 @@ export function OrderForm() {
         <div>
           <Label htmlFor="pickup_time">{t('order.pickupTime')} *</Label>
           {!storeOpen ? (
-            <p className="mt-1 text-sm text-destructive font-medium">
-              {t('order.closedToday')}
-            </p>
+            <p className="mt-1 text-sm text-destructive font-medium">{t('order.closedToday')}</p>
           ) : minTime > '19:00' ? (
             <p className="mt-1 text-sm text-destructive font-medium">
               {language === 'zh'
@@ -177,12 +192,8 @@ export function OrderForm() {
           ) : (
             <>
               <Input
-                id="pickup_time"
-                name="pickup_time"
-                type="time"
-                required
-                min={minTime > '11:00' ? minTime : '11:00'}
-                max="19:00"
+                id="pickup_time" name="pickup_time" type="time" required
+                min={minTime > '11:00' ? minTime : '11:00'} max="19:00"
                 onChange={(e) => validatePickupTime(e.target.value)}
               />
               <p className="mt-1 text-xs text-muted-foreground">
@@ -198,9 +209,31 @@ export function OrderForm() {
         </div>
       </div>
 
-      <PaymentInfo />
+      {/* Payment method */}
+      {HAS_SQUARE ? (
+        <PaymentMethodSelector selected={paymentMethod} onSelect={setPaymentMethod} />
+      ) : (
+        <div className="rounded-lg border bg-muted/50 p-4">
+          <h3 className="mb-2 font-semibold">{language === 'zh' ? '付款方式' : 'Payment'}</h3>
+          <p className="text-sm text-muted-foreground">
+            {language === 'zh' ? '到店付現' : 'Pay cash at pickup'}
+          </p>
+        </div>
+      )}
 
-      {/* 訂單確認警語 */}
+      {/* Square credit card form */}
+      {paymentMethod === 'card' && HAS_SQUARE && (
+        <SquarePaymentForm
+          applicationId={SQUARE_APP_ID}
+          locationId={SQUARE_LOC_ID}
+          amount={totalAmount}
+          disabled={loading}
+          onPaymentNonce={(nonce) => setPaymentNonce(nonce)}
+          onError={(msg) => setError(msg)}
+        />
+      )}
+
+      {/* Confirmation warning */}
       <div className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <p>{t('order.confirmWarning')}</p>
@@ -208,9 +241,12 @@ export function OrderForm() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" className="w-full" size="lg" disabled={loading || !storeOpen || minTime > '19:00'}>
-        {loading ? t('common.loading') : t('order.submit')}
-      </Button>
+      {/* Submit button — only for cash; card uses SquarePaymentForm button */}
+      {paymentMethod === 'cash' && (
+        <Button type="submit" className="w-full" size="lg" disabled={loading || !storeOpen || minTime > '19:00'}>
+          {loading ? t('common.loading') : t('order.submit')}
+        </Button>
+      )}
     </form>
   )
 }
