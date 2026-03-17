@@ -35,8 +35,8 @@ export async function POST(request: Request) {
     if (digitsOnly.length < 10) {
       return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 })
     }
-    if (!/^\d{2}:\d{2}$/.test(pickup_time) || pickup_time < '11:00' || pickup_time > '19:00') {
-      return NextResponse.json({ error: 'Pickup time must be between 11:00 and 19:00' }, { status: 400 })
+    if (!/^\d{2}:\d{2}$/.test(pickup_time) || pickup_time < '11:00' || pickup_time > '18:30') {
+      return NextResponse.json({ error: 'Pickup time must be between 11:00 and 18:30' }, { status: 400 })
     }
     // Use NY timezone (Vercel servers run UTC)
     const nyNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))

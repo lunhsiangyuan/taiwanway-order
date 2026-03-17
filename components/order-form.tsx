@@ -176,17 +176,17 @@ export function OrderForm() {
           <Label htmlFor="pickup_time">{t('order.pickupTime')} *</Label>
           {!storeOpen ? (
             <p className="mt-1 text-sm text-destructive font-medium">{t('order.closedToday')}</p>
-          ) : minTime > '19:00' ? (
+          ) : minTime > '18:30' ? (
             <p className="mt-1 text-sm text-destructive font-medium">
               {language === 'zh'
-                ? `準備時間需 ${prepMinutes} 分鐘，已超過今日營業時間（7PM），請明日再訂`
-                : `${prepMinutes} min prep needed, past today's closing (7PM). Please order tomorrow.`}
+                ? `準備時間需 ${prepMinutes} 分鐘，已超過今日營業時間（6:30PM），請明日再訂`
+                : `${prepMinutes} min prep needed, past today's closing (6:30PM). Please order tomorrow.`}
             </p>
           ) : (
             <>
               <Input
                 id="pickup_time" name="pickup_time" type="time" required
-                min={minTime > '11:00' ? minTime : '11:00'} max="19:00"
+                min={minTime > '11:00' ? minTime : '11:00'} max="18:30"
                 onChange={(e) => validatePickupTime(e.target.value)}
               />
               <p className="mt-1 text-xs text-muted-foreground">
@@ -218,7 +218,7 @@ export function OrderForm() {
           applicationId={SQUARE_APP_ID}
           locationId={SQUARE_LOC_ID}
           amount={totalAmount}
-          disabled={loading || !storeOpen || minTime > '19:00'}
+          disabled={loading || !storeOpen || minTime > '18:30'}
           onPaymentNonce={(nonce) => setPaymentNonce(nonce)}
           onError={(msg) => setError(msg)}
         />
